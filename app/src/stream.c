@@ -13,6 +13,7 @@
 #include "decoder.h"
 #include "events.h"
 #include "recorder.h"
+#include "serve.h"
 #include "util/buffer_util.h"
 #include "util/log.h"
 
@@ -90,6 +91,18 @@ process_frame(struct stream *stream, AVPacket *packet) {
         if (!recorder_push(stream->recorder, packet)) {
             LOGE("Could not send packet to recorder");
             return false;
+        }
+    }
+
+    if (stream->serve) {
+        if (stream->serve->isServeReady == true) {
+            //LOGI("Serve is processing");
+            packet->dts = packet->pts;
+
+            if (!serve_push(stream->serve, packet)) {
+                LOGE("Could not serve packet");
+                return false;
+            }
         }
     }
 
@@ -270,10 +283,11 @@ end:
 
 void
 stream_init(struct stream *stream, socket_t socket,
-            struct decoder *decoder, struct recorder *recorder) {
+            struct decoder *decoder, struct recorder *recorder, struct serve *serve) {
     stream->socket = socket;
     stream->decoder = decoder,
     stream->recorder = recorder;
+    stream->serve = serve;
     stream->has_pending = false;
 }
 
